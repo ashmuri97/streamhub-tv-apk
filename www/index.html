@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StreamHub Pro // Android TV Workbench v3.0.3-tv</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    :root {
+      --bg: #070a0f; --panel: #0d131d; --panel-2: #121a28; --panel-3: #172133;
+      --line: #1f2d42; --line-hi: #2d4261; --text: #e6edf7; --muted: #8899b3;
+      --cyan: #22d3ee; --emerald: #10b981; --emerald-dk: #059669;
+      --blue: #3b82f6; --blue-dk: #2563eb; --amber: #f59e0b; --amber-dk: #d97706;
+      --danger: #ef4444; --mono: Consolas, "Courier New", monospace; --ui: Tahoma, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; font-family: var(--ui); }
+    *:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    body { margin: 0; background: var(--bg); color: var(--text); padding: 18px 14px 36px; line-height: 1.5; }
+    .mono { font-family: var(--mono); }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .topbar, .box, .stat-card, .card, .status { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 14px 18px; margin-bottom: 14px; border-top: 3px solid var(--cyan); }
+    .badge { font-family: var(--mono); background: rgba(16,185,129,0.14); color: #34d399; border: 1px solid rgba(16,185,129,0.35); padding: 2px 10px; border-radius: 5px; font-size: 11px; font-weight: bold; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .stat-card { padding: 11px 14px; }
+    .stat-value { font-family: var(--mono); font-size: 20px; font-weight: bold; margin-top: 2px; }
+    .box { padding: 15px; margin-bottom: 12px; }
+    .ingest-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; }
+    .ingest-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 11px; }
+    .ingest-card-title { font-size: 12px; font-weight: bold; color: #67e8f9; margin-bottom: 8px; font-family: var(--mono); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    input, select, textarea { flex: 1; min-width: 140px; padding: 9px 11px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-3); color: var(--text); font-size: 12px; }
+    input[type="checkbox"] { flex: 0 0 auto; min-width: 0; width: 16px; height: 16px; cursor: pointer; }
+    textarea { width: 100%; min-height: 76px; margin-top: 8px; font-family: var(--mono); }
+    button, .file-label { padding: 8px 13px; border: 1px solid transparent; border-radius: 6px; background: var(--emerald); color: #fff; font-weight: bold; font-size: 12px; cursor: pointer; }
+    button.secondary, .file-label.secondary { background: var(--panel-2); border-color: var(--line-hi); color: var(--text); }
+    button.amber { background: var(--amber-dk); }
+    button.play-btn { background: var(--blue-dk); }
+    button.danger { background: var(--danger); }
+    input[type="file"] { display: none; }
+    .player-wrapper { display: none; background: #05080d; border: 1px solid var(--cyan); border-radius: 8px; padding: 15px; margin-bottom: 14px; }
+    video { width: 100%; max-height: 460px; background: #000; border-radius: 6px; }
+    .card { padding: 11px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .card.active-playing { border-color: var(--cyan); background: rgba(34, 211, 238, 0.05); }
+    .gh-batch-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; background: var(--panel-3); border: 1px solid var(--line-hi); border-radius: 6px; padding: 8px 11px; margin-bottom: 8px; }
+    .type-pill { font-family: var(--mono); font-size: 10px; padding: 1px 7px; border-radius: 4px; background: rgba(59,130,246,0.16); color: #93c5fd; border: 1px solid rgba(59,130,246,0.35); }
+    .analysis-chip { display: inline-block; margin-top: 5px; padding: 3px 9px; border-radius: 5px; font-size: 11px; background: rgba(34,211,238,0.1); color: #67e8f9; border: 1px solid rgba(34,211,238,0.3); }
+    .status { font-size: 12px; font-family: var(--mono); color: #fcd34d; padding: 10px 14px; margin: 12px 0; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .toast { position: fixed; bottom: 18px; left: 18px; background: #064e3b; color: #ecfdf5; border: 1px solid var(--emerald); padding: 9px 15px; border-radius: 6px; display: none; font-size: 12px; z-index: 999; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <div>
+        <span class="mono" style="color:var(--cyan);">SYS // ANDROID-SCREEN-WORKBENCH</span>
+        <h1 style="margin:4px 0 0;font-size:18px;">StreamHub Pro — المنصة المتكاملة <span class="badge">v3.0.3-tv</span></h1>
+      </div>
+      <div class="toolbar">
+        <button class="secondary" onclick="deduplicateItems()">إزالة المكرر</button>
+        <button class="secondary" onclick="exportFavoritesM3U()">★ M3U</button>
+        <button class="secondary" onclick="exportBackupJSON()">⬇ JSON</button>
+        <button class="secondary" onclick="clearAllData()">تفريغ القائمة</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card"><div>إجمالي القنوات</div><div id="statTotal" class="stat-value">0</div></div>
+      <div class="stat-card"><div>المعروض</div><div id="statShown" class="stat-value">0</div></div>
+      <div class="stat-card"><div>التصنيفات</div><div id="statGroups" class="stat-value">0</div></div>
+      <div class="stat-card"><div>المفضلة</div><div id="statFavs" class="stat-value">0</div></div>
+    </div>
+
+    <div id="playerBox" class="player-wrapper">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+        <span id="nowPlayingTitle" class="mono" style="color:var(--cyan);font-weight:bold;">STREAM_INIT...</span>
+        <div class="toolbar">
+          <button class="secondary" onclick="playPrev()">⏮ السابق</button>
+          <button class="secondary" onclick="playNext()">التالي ⏭</button>
+          <button class="danger" onclick="stopPlayer()">إغلاق ✖</button>
+        </div>
+      </div>
+      <video id="videoPlayer" controls playsinline></video>
+      <div id="playerStatus" class="mono" style="font-size:11px;color:#fcd34d;margin-top:6px;"></div>
+    </div>
+
+    <div class="box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <strong class="mono" style="color:var(--cyan);">// UNIFIED_INGEST v3.0.3-tv</strong>
+        <div class="toolbar">
+          <label><input id="corsFallbackCheckbox" type="checkbox" checked /> تجاوز CORS تلقائياً</label>
+          <label><input id="mergeModeCheckbox" type="checkbox" checked /> دمج تلقائي</label>
+        </div>
+      </div>
+
+      <div class="ingest-grid">
+        <div class="ingest-card">
+          <div class="ingest-card-title">1. رابط مباشر مفرد</div>
+          <div class="toolbar">
+            <input id="externalUrlInput" type="url" placeholder="https://.../playlist.m3u" />
+            <button class="amber" onclick="loadExternalM3U()">سحب وتحليل</button>
+          </div>
+          <div id="singleAnalysisBox" class="analysis-chip" style="display:none;"></div>
+        </div>
+
+        <div class="ingest-card">
+          <div class="ingest-card-title">2. ملف محلي أو لصق نص خام</div>
+          <div class="toolbar">
+            <label class="file-label secondary" for="m3uFileInput">📂 رفع M3U</label>
+            <input id="m3uFileInput" type="file" accept=".m3u,.m3u8,.txt,*/*" onchange="loadLocalM3U(event)" />
+            <button onclick="parsePastedText()">⚙ تفكيك النص</button>
+          </div>
+          <textarea id="rawTextInput" placeholder="الصق محتوى #EXTM3U هنا..."></textarea>
+        </div>
+
+        <div class="ingest-card">
+          <div class="ingest-card-title">3. سحب دفعي لعدة روابط</div>
+          <textarea id="batchUrlsInput" placeholder="رابط قائمة M3U في كل سطر..."></textarea>
+          <div class="toolbar" style="margin-top:8px;">
+            <button class="amber" onclick="pullBatchUrls()">⚡ سحب الكل</button>
+          </div>
+          <div id="batchIngestLog" style="margin-top:8px;display:grid;gap:6px;"></div>
+        </div>
+      </div>
+
+      <div class="ingest-card" style="margin-top:10px;">
+        <div class="ingest-card-title">4. مستودعات GitHub (سحب فردي أو تحديد عدة ملفات أو سحب الكل دفعة واحدة)</div>
+        <div class="toolbar" style="margin-bottom:8px;">
+          <select id="presetRepoSelect" onchange="applyPresetRepo()" aria-label="اختيار المستودع">
+            <option value="">-- اختر مستودعاً مقترحاً --</option>
+            <option value="iptv-org/iptv|master">iptv-org/iptv [master]</option>
+            <option value="Free-TV/IPTV|master">Free-TV/IPTV [master]</option>
+            <option value="iptv-org/awesome-iptv|master">iptv-org/awesome-iptv [master]</option>
+            <option value="custom|main">مستودع مخصص (كتابة يدوية)</option>
+          </select>
+          <select id="ghPullFilterSelect" onchange="applyPullFilterPreset()" aria-label="تصفية ملفات السحب">
+            <option value="">FILTER: ALL (*.m3u / *.m3u8)</option>
+            <option value="ar">FILTER: ARABIC (ar)</option>
+            <option value="news">FILTER: NEWS</option>
+            <option value="sport">FILTER: SPORT</option>
+            <option value="kids">FILTER: KIDS</option>
+            <option value="movies">FILTER: MOVIES</option>
+          </select>
+          <input id="ghBranchInput" type="text" value="master" style="max-width:110px;" />
+        </div>
+        <div class="toolbar">
+          <input id="ghRepoInput" type="text" placeholder="owner/repo (مثال: iptv-org/iptv)" />
+          <input id="ghFilterInput" type="text" placeholder="فلتر إضافي باسم الملف..." />
+          <input id="ghTokenInput" type="password" placeholder="GitHub Token (اختياري)..." />
+          <button class="amber" onclick="fetchRepoM3UFiles()">فحص وسحب الشجرة</button>
+        </div>
+        <div id="ghFilesList" style="margin-top:10px;display:grid;gap:6px;"></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="toolbar">
+        <input id="searchInput" type="text" placeholder="بحث بالاسم أو التصنيف أو الرابط..." oninput="applyFilter()" />
+        <select id="groupSelect" onchange="applyFilter()"><option value="">كل التصنيفات (0)</option></select>
+        <button onclick="exportM3U()">تصدير M3U</button>
+      </div>
+    </div>
+
+    <div class="status">
+      <span id="statusText">SYS_READY // v3.0.3-tv — جاهز للتغليف كـ APK على شاشة أندرويد</span>
+      <span id="countText"></span>
+    </div>
+    <div id="results"></div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    let allItems = [], filteredItems = [], repoM3UFiles = [];
+    let selectedRepoIndices = new Set();
+    let favoritesSet = new Set(JSON.parse(localStorage.getItem("streamhub_v1_favorites") || "[]"));
+    let currentPlayingIndex = -1, currentPlayingUrl = "", hlsInstance = null, toastTimer = null;
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg; t.style.display = "block";
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.style.display = "none"; }, 2200);
+    }
+    function setStatus(msg) { document.getElementById("statusText").textContent = msg; }
+    function setPlayerStatus(msg) {
+      const el = document.getElementById("playerStatus");
+      if (el) el.textContent = msg;
+    }
+    function escapeHtml(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+    function escapeJs(s) { return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,"&quot;"); }
+    function sanitizeM3UField(s, stripQuotes = false) {
+      let out = String(s || "").replace(/[\r\n]+/g, " ").trim();
+      if (stripQuotes) out = out.replace(/"/g, "");
+      return out;
+    }
+
+    function applyPresetRepo() {
+      const val = document.getElementById("presetRepoSelect").value;
+      if (!val) return;
+      const [repo, branch] = val.split("|");
+      const repoInput = document.getElementById("ghRepoInput");
+      const branchInput = document.getElementById("ghBranchInput");
+      if (repo === "custom") {
+        repoInput.value = "";
+        repoInput.focus();
+      } else {
+        repoInput.value = repo;
+        if (branch) branchInput.value = branch;
+        fetchRepoM3UFiles();
+      }
+    }
+
+    function applyPullFilterPreset() {
+      const preset = document.getElementById("ghPullFilterSelect").value;
+      document.getElementById("ghFilterInput").value = preset;
+      if (document.getElementById("ghRepoInput").value.trim().includes("/")) {
+        fetchRepoM3UFiles();
+      }
+    }
+
+    function detectStreamType(url) {
+      const u = String(url || "").toLowerCase();
+      if (u.includes(".m3u8")) return "HLS (.m3u8)";
+      if (u.includes(".mp4")) return "MP4";
+      if (u.includes(".webm")) return "WEBM";
+      return "LIVE STREAM";
+    }
+
+    function classifyChannel(rawGroup, title, url) {
+      const g = (rawGroup || "").trim();
+      if (g && !["عام","general","undefined","null","other"].includes(g.toLowerCase())) return g;
+      const h = `${title||""} ${url||""}`.toLowerCase();
+      if (/(news|أخبار|الجزيرة|al\s?jazeera|العربية|al\s?arabiya|bbc|cnn|france\s?24|sky\s?news)/.test(h)) return "أخبار";
+      if (/(sport|رياضة|bein|ssc|football|كرة)/.test(h)) return "رياضة";
+      if (/(kids|cartoon|أطفال|كرتون|disney)/.test(h)) return "أطفال";
+      if (/(movie|film|أفلام|مسلسل|series)/.test(h)) return "أفلام ومسلسلات";
+      if (/(quran|قرآن|ديني|إسلام)/.test(h)) return "ديني وثقافي";
+      return "بث مباشر متنوع";
+    }
+
+    function analyzeM3UContent(sourceRef, parsedItems) {
+      const all = `${String(sourceRef||"")} ${(parsedItems||[]).slice(0,60).map(i=>`${i.title} ${i.group} ${i.url}`).join(" ")}`.toLowerCase();
+      let role = "قائمة بث مباشر متنوعة";
+      if (/(ad|ads|promo|commercial|إعلان)/.test(all)) role = "مقاطع أو فواصل إعلانية/ترويجية";
+      else if (/(news|أخبار|al\s?jazeera|bbc|cnn)/.test(all)) role = "قنوات إخبارية";
+      else if (/(sport|رياضة)/.test(all)) role = "قنوات رياضية";
+      else if (/(kids|أطفال|كرتون)/.test(all)) role = "محتوى أطفال";
+      else if (/(movie|أفلام|مسلسل)/.test(all)) role = "أفلام ومسلسلات";
+      else if (/(quran|قرآن|ديني)/.test(all)) role = "محتوى ديني وثقافي";
+      return `التحليل الوصفي: ${role} (${(parsedItems||[]).length} عنصر)`;
+    }
+
+    async function smartFetchText(url) {
+      const useFallback = document.getElementById("corsFallbackCheckbox")?.checked;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP_" + res.status);
+        return await res.text();
+      } catch (err) {
+        if (!useFallback) throw err;
+        for (const p of [`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, `https://corsproxy.io/?${encodeURIComponent(url)}`]) {
+          try { const r = await fetch(p); if (r.ok) { const txt = await r.text(); if (txt.trim()) return txt; } } catch (_) {}
+        }
+        throw err;
+      }
+    }
+
+    function parseM3UContent(rawText) {
+      const lines = rawText.split(/\r?\n/), out = [];
+      let title = "", group = "";
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        if (line.startsWith("#EXTINF:")) {
+          const gm = line.match(/group-title="([^"]*)"/i);
+          group = gm ? gm[1] : "";
+          const ci = line.lastIndexOf(",");
+          title = ci !== -1 ? line.slice(ci + 1).trim() : "قناة غير مسماة";
+        } else if (!line.startsWith("#")) {
+          const t = title || "قناة بث مباشر";
+          out.push({ title: t, group: classifyChannel(group, t, line), url: line });
+          title = ""; group = "";
+        }
+      }
+      return out;
+    }
+
+    function setLoadedItems(newItems, label = "") {
+      const merge = document.getElementById("mergeModeCheckbox").checked;
+      allItems = (merge && allItems.length) ? [...allItems, ...newItems] : newItems;
+      rebuildGroupOptions();
+      setStatus(`LOADED ${allItems.length} CH ${label ? "[" + label + "]" : ""}`);
+      applyFilter();
+    }
+
+    function rebuildGroupOptions() {
+      const sel = document.getElementById("groupSelect");
+      const prev = sel.value;
+      const groups = [...new Set(allItems.map(i => i.group))].sort((a,b) => a.localeCompare(b,"ar"));
+      sel.innerHTML = `<option value="">كل التصنيفات (${allItems.length})</option>` + groups.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
+      if (groups.includes(prev)) sel.value = prev;
+    }
+
+    function applyFilter() {
+      const q = document.getElementById("searchInput").value.trim().toLowerCase();
+      const g = document.getElementById("groupSelect").value;
+      filteredItems = allItems.filter(i => (!g || i.group === g) && (!q || i.title.toLowerCase().includes(q) || i.group.toLowerCase().includes(q) || i.url.toLowerCase().includes(q)));
+      document.getElementById("statTotal").textContent = allItems.length;
+      document.getElementById("statShown").textContent = filteredItems.length;
+      document.getElementById("statGroups").textContent = new Set(allItems.map(i => i.group)).size;
+      document.getElementById("statFavs").textContent = favoritesSet.size;
+      renderList();
+    }
+
+    function renderList() {
+      const el = document.getElementById("results");
+      document.getElementById("countText").textContent = `VIEW=${filteredItems.length} / TOTAL=${allItems.length}`;
+      if (!filteredItems.length) { el.innerHTML = "<div class='card'>لا توجد قنوات معروضة</div>"; return; }
+      el.innerHTML = filteredItems.map((item, idx) => {
+        const active = currentPlayingUrl && item.url === currentPlayingUrl;
+        return `
+          <div class="card ${active ? "active-playing" : ""}">
+            <div style="flex:1;min-width:220px;">
+              <strong>#${idx + 1} — ${escapeHtml(item.title)}</strong>
+              <div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap;">
+                <span style="font-size:11px;color:#6ee7b7;">📁 ${escapeHtml(item.group)}</span>
+                <span class="type-pill">${escapeHtml(detectStreamType(item.url))}</span>
+              </div>
+              <div class="mono" style="font-size:11px;color:#8899b3;word-break:break-all;margin-top:4px;">${escapeHtml(item.url)}</div>
+            </div>
+            <div class="toolbar">
+              <button class="play-btn" onclick="playIndex(${idx})">▶ تشغيل</button>
+              <button class="secondary" onclick="toggleFav('${escapeJs(item.url)}')">${favoritesSet.has(item.url) ? "★" : "☆"}</button>
+              <button class="secondary" onclick="navigator.clipboard?.writeText('${escapeJs(item.url)}').then(()=>showToast('تم النسخ'))">نسخ</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function toggleFav(url) {
+      if (favoritesSet.has(url)) favoritesSet.delete(url); else favoritesSet.add(url);
+      localStorage.setItem("streamhub_v1_favorites", JSON.stringify([...favoritesSet]));
+      applyFilter();
+    }
+
+    function playIndex(idx) {
+      const item = filteredItems[idx];
+      if (!item) return;
+      currentPlayingIndex = idx;
+      currentPlayingUrl = item.url;
+      document.getElementById("playerBox").style.display = "block";
+      document.getElementById("nowPlayingTitle").textContent = `NOW_PLAYING: ${item.title} [${detectStreamType(item.url)}]`;
+      setPlayerStatus("CONNECTING_STREAM...");
+      const video = document.getElementById("videoPlayer");
+      if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+      if (typeof Hls !== "undefined" && Hls.isSupported() && item.url.toLowerCase().includes(".m3u8")) {
+        hlsInstance = new Hls(); hlsInstance.loadSource(item.url); hlsInstance.attachMedia(video);
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+          setPlayerStatus("STREAM_LIVE // البث جاهز للتشغيل");
+          video.play().catch(() => setPlayerStatus("CLICK_PLAY_ON_VIDEO"));
+        });
+        hlsInstance.on(Hls.Events.ERROR, (_, data) => {
+          if (data && data.fatal) setPlayerStatus("STREAM_ERR // تعذر تشغيل البث في المتصفح");
+        });
+      } else {
+        video.src = item.url;
+        video.play()
+          .then(() => setPlayerStatus("DIRECT_STREAM_ACTIVE"))
+          .catch(() => setPlayerStatus("FORMAT_OR_CORS_BLOCK // جرب نسخ الرابط لفتحه في VLC"));
+      }
+      renderList();
+    }
+
+    function playNext() { if (filteredItems.length) playIndex((currentPlayingIndex + 1) % filteredItems.length); }
+    function playPrev() { if (filteredItems.length) playIndex((currentPlayingIndex - 1 + filteredItems.length) % filteredItems.length); }
+    function stopPlayer() {
+      currentPlayingIndex = -1; currentPlayingUrl = "";
+      if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+      const v = document.getElementById("videoPlayer"); v.pause(); v.removeAttribute("src");
+      setPlayerStatus("");
+      document.getElementById("playerBox").style.display = "none";
+      renderList();
+    }
+
+    function parsePastedText() {
+      const items = parseM3UContent(document.getElementById("rawTextInput").value);
+      if (items.length) setLoadedItems(items, "RAW_TEXT");
+      else showToast("لم يتم العثور على قنوات صالحة");
+    }
+    function loadLocalM3U(e) {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => { const items = parseM3UContent(ev.target.result); if (items.length) setLoadedItems(items, f.name); };
+      r.readAsText(f, "UTF-8");
+      e.target.value = "";
+    }
+    async function loadExternalM3U() {
+      const url = document.getElementById("externalUrlInput").value.trim();
+      if (!url) return showToast("أدخل رابطاً أولاً");
+      try {
+        const items = parseM3UContent(await smartFetchText(url));
+        const chip = document.getElementById("singleAnalysisBox");
+        chip.style.display = "inline-block"; chip.textContent = analyzeM3UContent(url, items);
+        if (items.length) setLoadedItems(items, "URL");
+      } catch (err) { showToast("تعذر الجلب: " + err.message); }
+    }
+    async function pullBatchUrls() {
+      const urls = document.getElementById("batchUrlsInput").value.split(/\r?\n/).map(s=>s.trim()).filter(s=>/^https?:\/\//i.test(s));
+      const log = document.getElementById("batchIngestLog"); log.innerHTML = "";
+      for (const u of urls) {
+        try {
+          const items = parseM3UContent(await smartFetchText(u));
+          setLoadedItems(items, "BATCH");
+          log.innerHTML += `<div class="card"><div><strong>${escapeHtml(u)}</strong><div class="analysis-chip">${escapeHtml(analyzeM3UContent(u, items))}</div></div><span>+${items.length}</span></div>`;
+        } catch (_) {
+          log.innerHTML += `<div class="card"><div><strong>${escapeHtml(u)}</strong><div class="analysis-chip">${escapeHtml(analyzeM3UContent(u, []))}</div></div><span>ERR</span></div>`;
+        }
+      }
+    }
+
+    async function fetchRepoM3UFiles() {
+      const repo = document.getElementById("ghRepoInput").value.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\/+$/, "");
+      let branch = document.getElementById("ghBranchInput").value.trim() || "master";
+      const flt = document.getElementById("ghFilterInput").value.trim().toLowerCase();
+      const token = document.getElementById("ghTokenInput").value.trim();
+      const ghList = document.getElementById("ghFilesList");
+
+      if (!repo || !repo.includes("/")) {
+        showToast("اختر مستودعاً من القائمة أو اكتب owner/repo");
+        return;
+      }
+
+      const headers = { "Accept": "application/vnd.github+json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      setStatus(`GITHUB_TREE_FETCH // ${repo}@${branch}`);
+      ghList.innerHTML = "<div class='card'>جاري فحص شجرة المستودع...</div>";
+      selectedRepoIndices.clear();
+
+      try {
+        let res = await fetch(`https://api.github.com/repos/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`, { headers });
+        if (res.status === 404) {
+          const alt = branch === "master" ? "main" : "master";
+          res = await fetch(`https://api.github.com/repos/${repo}/git/trees/${encodeURIComponent(alt)}?recursive=1`, { headers });
+          if (res.ok) {
+            branch = alt;
+            document.getElementById("ghBranchInput").value = branch;
+          }
+        }
+        if (!res.ok) throw new Error("HTTP_" + res.status);
+
+        const data = await res.json();
+        const allPlaylists = (data.tree || []).filter(n => n.type === "blob" && /\.(m3u|m3u8)$/i.test(n.path));
+        repoM3UFiles = allPlaylists
+          .filter(n => !flt || n.path.toLowerCase().includes(flt))
+          .slice(0, 40)
+          .map(n => ({ path: n.path, rawUrl: `https://raw.githubusercontent.com/${repo}/${branch}/${n.path}`, analysis: analyzeM3UContent(n.path, []), statusText: "" }));
+
+        if (!repoM3UFiles.length) {
+          ghList.innerHTML = `<div class="card">لا توجد ملفات مطابقة للفلتر (${escapeHtml(flt || "ALL")}) — إجمالي ملفات M3U في المستودع: ${allPlaylists.length}. جرّب اختيار FILTER: ALL.</div>`;
+          setStatus(`NO_MATCH_FOR_FILTER (${allPlaylists.length} total)`);
+          return;
+        }
+
+        setStatus(`FOUND ${repoM3UFiles.length} PLAYLISTS (${repo}@${branch})`);
+        renderRepoFiles();
+      } catch (e) {
+        ghList.innerHTML = `<div class="card">تعذر فحص المستودع (${escapeHtml(e.message)}) — تأكد من الاتصال أو أدخل GitHub Token.</div>`;
+        setStatus("GH_ERR: " + e.message);
+      }
+    }
+
+    function toggleRepoSelect(idx) {
+      if (selectedRepoIndices.has(idx)) selectedRepoIndices.delete(idx);
+      else selectedRepoIndices.add(idx);
+      updateRepoSelectionSummary();
+    }
+
+    function selectAllRepoFiles(checked) {
+      selectedRepoIndices.clear();
+      if (checked) {
+        repoM3UFiles.forEach((_, i) => selectedRepoIndices.add(i));
+      }
+      renderRepoFiles();
+    }
+
+    function updateRepoSelectionSummary() {
+      const selBtn = document.getElementById("pullSelectedRepoBtn");
+      const allBox = document.getElementById("selectAllRepoCheckbox");
+      if (selBtn) selBtn.textContent = `سحب المحدد (${selectedRepoIndices.size})`;
+      if (allBox) allBox.checked = repoM3UFiles.length > 0 && selectedRepoIndices.size === repoM3UFiles.length;
+    }
+
+    function renderRepoFiles() {
+      const ghList = document.getElementById("ghFilesList");
+      if (!repoM3UFiles.length) { ghList.innerHTML = ""; return; }
+
+      const batchBar = `
+        <div class="gh-batch-bar">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input id="selectAllRepoCheckbox" type="checkbox" onchange="selectAllRepoFiles(this.checked)" ${selectedRepoIndices.size === repoM3UFiles.length ? "checked" : ""} />
+            <span>تحديد الكل (${repoM3UFiles.length})</span>
+          </label>
+          <div class="toolbar">
+            <button id="pullSelectedRepoBtn" class="secondary" onclick="pullSelectedRepoFiles()">سحب المحدد (${selectedRepoIndices.size})</button>
+            <button class="amber" onclick="pullAllRepoFiles()">⚡ سحب الكل (${repoM3UFiles.length})</button>
+          </div>
+        </div>
+      `;
+
+      const rows = repoM3UFiles.map((f, i) => {
+        const isChecked = selectedRepoIndices.has(i);
+        return `
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:220px;">
+              <input type="checkbox" ${isChecked ? "checked" : ""} onchange="toggleRepoSelect(${i})" aria-label="تحديد ${escapeHtml(f.path)}" />
+              <div style="flex:1;min-width:200px;">
+                <strong>${escapeHtml(f.path)}</strong>
+                ${f.statusText ? `<span class="type-pill" style="margin-right:6px;">${escapeHtml(f.statusText)}</span>` : ""}
+                <div class="analysis-chip">${escapeHtml(f.analysis || analyzeM3UContent(f.path, []))}</div>
+              </div>
+            </div>
+            <button onclick="parseRepoFile(${i})">سحب</button>
+          </div>
+        `;
+      }).join("");
+
+      ghList.innerHTML = batchBar + rows;
+    }
+
+    async function pullRepoIndices(indices, modeLabel = "BATCH_GH") {
+      if (!indices.length) {
+        showToast("اختر ملفاً واحداً على الأقل أولاً");
+        return;
+      }
+      let totalAdded = 0;
+      for (let k = 0; k < indices.length; k++) {
+        const idx = indices[k];
+        const f = repoM3UFiles[idx];
+        if (!f) continue;
+        setStatus(`${modeLabel} (${k + 1}/${indices.length}) // ${f.path}`);
+        try {
+          const items = parseM3UContent(await smartFetchText(f.rawUrl));
+          f.analysis = analyzeM3UContent(f.path + " " + f.rawUrl, items);
+          f.statusText = `+${items.length}`;
+          totalAdded += items.length;
+          setLoadedItems(items, f.path);
+          renderRepoFiles();
+        } catch (_) {
+          f.statusText = "ERR";
+          renderRepoFiles();
+        }
+      }
+      showToast(`اكتمل سحب ${indices.length} ملفات (+${totalAdded} قناة)`);
+    }
+
+    async function pullSelectedRepoFiles() {
+      await pullRepoIndices([...selectedRepoIndices].sort((a, b) => a - b), "SELECTED_GH");
+    }
+
+    async function pullAllRepoFiles() {
+      const allIdx = repoM3UFiles.map((_, i) => i);
+      await pullRepoIndices(allIdx, "ALL_GH");
+    }
+
+    async function parseRepoFile(i) {
+      const f = repoM3UFiles[i]; if (!f) return;
+      setStatus("FETCHING // " + f.path);
+      try {
+        const items = parseM3UContent(await smartFetchText(f.rawUrl));
+        f.analysis = analyzeM3UContent(f.path + " " + f.rawUrl, items);
+        f.statusText = `+${items.length}`;
+        setLoadedItems(items, f.path);
+        renderRepoFiles();
+      } catch (e) {
+        f.statusText = "ERR";
+        renderRepoFiles();
+        showToast("تعذر سحب الملف: " + e.message);
+      }
+    }
+
+    function buildM3U(items) {
+      return "#EXTM3U\n" + items
+        .map(i => `#EXTINF:-1 group-title="${sanitizeM3UField(i.group, true)}",${sanitizeM3UField(i.title, false)}\n${sanitizeM3UField(i.url, false)}`)
+        .join("\n");
+    }
+
+    function triggerDownload(filename, content, mimeType) {
+      try {
+        if (window.AndroidBridge && typeof window.AndroidBridge.saveFile === "function") {
+          const bytes = new TextEncoder().encode(content);
+          let bin = "";
+          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          window.AndroidBridge.saveFile(filename, btoa(bin), mimeType);
+          showToast("تم حفظ الملف على الجهاز");
+          return;
+        }
+      } catch (_) {}
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([content], { type: mimeType }));
+      a.download = filename;
+      a.click();
+    }
+
+    function deduplicateItems() {
+      const seen = new Set();
+      allItems = allItems.filter(i => !seen.has(i.url) && seen.add(i.url));
+      rebuildGroupOptions();
+      applyFilter(); showToast("تمت إزالة المكرر");
+    }
+    function exportM3U() {
+      if (!filteredItems.length) return showToast("لا توجد قنوات للتصدير");
+      triggerDownload("playlist_v3.0.3_tv.m3u", buildM3U(filteredItems), "audio/x-mpegurl");
+    }
+    function exportFavoritesM3U() {
+      const favs = allItems.filter(i => favoritesSet.has(i.url));
+      if (!favs.length) return showToast("لا توجد مفضلة");
+      triggerDownload("favorites_v3.0.3_tv.m3u", buildM3U(favs), "audio/x-mpegurl");
+    }
+    function exportBackupJSON() {
+      const data = JSON.stringify({ version: "v3.0.3-tv", favorites: [...favoritesSet], items: allItems }, null, 2);
+      triggerDownload("streamhub_v3.0.3_tv.json", data, "application/json");
+    }
+    function clearAllData() { allItems = []; filteredItems = []; repoM3UFiles = []; selectedRepoIndices.clear(); document.getElementById("ghFilesList").innerHTML = ""; stopPlayer(); rebuildGroupOptions(); applyFilter(); setStatus("CLEARED"); }
+
+    document.addEventListener("keydown", e => {
+      const tag = (e.target && e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      if (e.key === "1" && filteredItems.length) { e.preventDefault(); playNext(); }
+    });
+    applyFilter();
+  </script>
+</body>
+</html>
