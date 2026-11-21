@@ -23,12 +23,6 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: "34"
-          build-tools: "34.0.0"
-
       - name: Install Capacitor and build project
         run: |
           npm init -y
@@ -38,6 +32,9 @@ jobs:
           npx cap copy android
 
       - name: Assemble Debug APK
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           cd android
           ./gradlew assembleDebug
